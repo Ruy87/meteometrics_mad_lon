@@ -1,4 +1,6 @@
 import requests
+import pandas as pd
+from pandas import json_normalize
 
 url_mad = "https://meteometrics.rlopez.org/historical-data/MAD"
 url_lon = "https://meteometrics.rlopez.org/historical-data/LON"
@@ -18,5 +20,15 @@ try:
     raw_data_londres = response.json()
     print(raw_data_londres[:2])
 
+    df_madrid = json_normalize(raw_data_madrid)
+    df_madrid["city"] = "Madrid"
+
+    df_londres = json_normalize(raw_data_londres)
+    df_londres["city"] = "Londres"
+
+    df = pd.concat([df_madrid, df_londres], ignore_index=True)
+
 except requests.exceptions.RequestException as e:
     print(f'Error en la petición: {e}')
+
+  
