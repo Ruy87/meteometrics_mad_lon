@@ -1,0 +1,4 @@
+Informe de limpieza de datos
+Registros iniciales: 278
+Registros borrados: 14
+Registros finales: 264
