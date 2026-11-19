@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 from pandas import json_normalize
+from pathlib import Path
 
 url_mad = "https://meteometrics.rlopez.org/historical-data/MAD"
 url_lon = "https://meteometrics.rlopez.org/historical-data/LON"
@@ -136,6 +137,19 @@ try:
             f"Registros borrados: {registros_borrados}\n"
             f"Registros finales: {len(df_total)}\n"
         )
+
+    # Guarda los DataFrames enriquecidos y sus resúmenes en formato Parquet.
+    carpeta_data = Path("data")
+    carpeta_data.mkdir(parents=True, exist_ok=True)
+    df_total.to_parquet(
+        carpeta_data / "df_total.parquet", engine="pyarrow", index=False
+    )
+    resumen_ciudad.to_parquet(
+        carpeta_data / "resumen_ciudad.parquet", engine="pyarrow", index=False
+    )
+    resumen_anual.to_parquet(
+        carpeta_data / "resumen_anual.parquet", engine="pyarrow", index=False
+    )
 
     print(df_total)
     print("\nResumen por ciudad:")
