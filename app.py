@@ -77,7 +77,56 @@ try:
     )
     df.loc[es_pulgadas, "metrics.precipitation.unit"] = "mm"
 
-    print(df)
+    df_total = df.copy()
+
+    # Mide la diferencia entre las temperaturas máxima y mínima del mes.
+    df_total["thermal_range"] = (
+        df_total["metrics.temperature.max"] - df_total["metrics.temperature.min"]
+    )
+
+    # Acumula la lluvia por ciudad y año; el DataFrame ya está ordenado por mes.
+    df_total["cumulative_rain_year"] = df_total.groupby(
+        ["city", "year"]
+    )["metrics.precipitation.avg"].cumsum()
+
+    # Pondera el calor máximo según el déficit de lluvia frente al promedio histórico
+    # de la misma ciudad y mes; el déficit queda limitado entre 0 y 1.
+    lluvia_media_ciudad_mes = df_total.groupby(["city", "month"])[
+        "metrics.precipitation.avg"
+    ].transform("mean")
+    proporcion_lluvia = (
+        df_total["metrics.precipitation.avg"] / lluvia_media_ciudad_mes
+    ).clip(lower=0, upper=1)
+    df_total["kpi.heat_stress_index"] = (
+        df_total["metrics.temperature.max"] * (1 - proporcion_lluvia)
+    )
+
+    # Estandariza la temperatura media respecto al historial de cada ciudad.
+    temperatura_media_ciudad = df_total.groupby("city")[
+        "metrics.temperature.avg"
+    ]
+    df_total["kpi.temp_zscore"] = (
+        df_total["metrics.temperature.avg"]
+        - temperatura_media_ciudad.transform("mean")
+    ) / temperatura_media_ciudad.transform("std")
+
+    # Resume la media histórica de temperatura y la lluvia total por ciudad.
+    resumen_ciudad = (
+        df_total.groupby("city", as_index=False)
+        .agg(
+            temperatura_media_historica=("metrics.temperature.avg", "mean"),
+            precipitacion_total=("metrics.precipitation.avg", "sum"),
+        )
+    )
+
+    # Resume los extremos absolutos de temperatura por ciudad y año.
+    resumen_anual = (
+        df_total.groupby(["city", "year"], as_index=False)
+        .agg(
+            temperatura_maxima_absoluta=("metrics.temperature.max", "max"),
+            temperatura_minima_absoluta=("metrics.temperature.min", "min"),
+        )
+    )
 
     # Resume los registros antes y después de eliminar duplicados.
     with open("informe_limpieza.txt", "w", encoding="utf-8") as informe:
@@ -85,8 +134,14 @@ try:
             "Informe de limpieza de datos\n"
             f"Registros iniciales: {registros_iniciales}\n"
             f"Registros borrados: {registros_borrados}\n"
-            f"Registros finales: {len(df)}\n"
+            f"Registros finales: {len(df_total)}\n"
         )
+
+    print(df_total)
+    print("\nResumen por ciudad:")
+    print(resumen_ciudad)
+    print("\nResumen anual:")
+    print(resumen_anual)
 except requests.exceptions.RequestException as e:
     print(f'Error en la petición: {e}')
     print(df)
